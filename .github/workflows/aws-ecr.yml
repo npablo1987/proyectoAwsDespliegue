@@ -1,53 +1,63 @@
-# Nombre del workflow que aparece en la pestaña "Actions" de GitHub
-name: Build and Push to AWS ECR
+name: Build, Push and Deploy to AWS ECS
 
-# Define cuándo se ejecuta el workflow
 on:
-  push:                  # Se dispara cuando hay un push
+  push:
     branches:
-      - main             # Solo en la rama main (no en otras ramas)
+      - main
 
-# Define los trabajos (jobs) que se ejecutarán
 jobs:
-  build-and-push:        # Nombre del job
-    runs-on: ubuntu-latest  # Usa una máquina virtual Ubuntu (la versión más reciente disponible en GitHub Actions)
+  build-push-deploy:
+    runs-on: ubuntu-latest
 
-    # Lista de pasos que se ejecutan en orden
     steps:
-      # Paso 1: Descarga el código del repositorio en la máquina virtual
       - name: Descargar código
-        uses: actions/checkout@v4  # Action oficial de GitHub para hacer git checkout
+        uses: actions/checkout@v4
 
-      # Paso 2: Configura las credenciales de AWS para que los comandos siguientes puedan autenticarse
       - name: Configurar credenciales AWS
-        uses: aws-actions/configure-aws-credentials@v4  # Action oficial de AWS
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}         # Access Key guardada en los Secrets del repositorio
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }} # Secret Key guardada en los Secrets del repositorio
-          aws-region: ${{ secrets.AWS_REGION }}                       # Región AWS (ej: us-east-2), también en Secrets
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-      # Paso 3: Hace login en Amazon ECR para poder subir imágenes Docker
-      # Usa las credenciales configuradas en el paso anterior
       - name: Login en Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v2  # Action oficial de AWS para autenticarse en ECR
+        uses: aws-actions/amazon-ecr-login@v2
 
-      # Paso 4: Construye y sube la imagen Docker de servicio1
       - name: Build y Push servicio1
         run: |
-          docker build -t servicio1 ./servicio1                                                          # Construye la imagen usando el Dockerfile en la carpeta ./servicio1
-          docker tag servicio1:latest 705690519982.dkr.ecr.us-east-2.amazonaws.com/servicio1:latest     # Le asigna la URL del repositorio ECR como tag
-          docker push 705690519982.dkr.ecr.us-east-2.amazonaws.com/servicio1:latest                     # Sube la imagen al repositorio ECR
+          docker build -t servicio1 ./servicio1
+          docker tag servicio1:latest 705690519982.dkr.ecr.us-east-2.amazonaws.com/servicio1:latest
+          docker push 705690519982.dkr.ecr.us-east-2.amazonaws.com/servicio1:latest
 
-      # Paso 5: Construye y sube la imagen Docker de servicio2
       - name: Build y Push servicio2
         run: |
-          docker build -t servicio2 ./servicio2                                                          # Construye la imagen usando el Dockerfile en la carpeta ./servicio2
-          docker tag servicio2:latest 705690519982.dkr.ecr.us-east-2.amazonaws.com/servicio2:latest     # Le asigna la URL del repositorio ECR como tag
-          docker push 705690519982.dkr.ecr.us-east-2.amazonaws.com/servicio2:latest                     # Sube la imagen al repositorio ECR
+          docker build -t servicio2 ./servicio2
+          docker tag servicio2:latest 705690519982.dkr.ecr.us-east-2.amazonaws.com/servicio2:latest
+          docker push 705690519982.dkr.ecr.us-east-2.amazonaws.com/servicio2:latest
 
-      # Paso 6: Construye y sube la imagen Docker de servicio3
       - name: Build y Push servicio3
         run: |
-          docker build -t servicio3 ./servicio3                                                          # Construye la imagen usando el Dockerfile en la carpeta ./servicio3
-          docker tag servicio3:latest 705690519982.dkr.ecr.us-east-2.amazonaws.com/servicio3:latest     # Le asigna la URL del repositorio ECR como tag
-          docker push 705690519982.dkr.ecr.us-east-2.amazonaws.com/servicio3:latest                     # Sube la imagen al repositorio ECR
+          docker build -t servicio3 ./servicio3
+          docker tag servicio3:latest 705690519982.dkr.ecr.us-east-2.amazonaws.com/servicio3:latest
+          docker push 705690519982.dkr.ecr.us-east-2.amazonaws.com/servicio3:latest
+
+      - name: Actualizar servicio1 en ECS
+        run: |
+          aws ecs update-service \
+            --cluster proyecto-aws-cluster \
+            --service servicio1-service \
+            --force-new-deployment
+
+      - name: Actualizar servicio2 en ECS
+        run: |
+          aws ecs update-service \
+            --cluster proyecto-aws-cluster \
+            --service servicio2-service \
+            --force-new-deployment
+
+      - name: Actualizar servicio3 en ECS
+        run: |
+          aws ecs update-service \
+            --cluster proyecto-aws-cluster \
+            --service servicio3-service \
+            --force-new-deployment
